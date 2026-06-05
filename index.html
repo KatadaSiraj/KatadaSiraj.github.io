@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Playlist Ripper</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  /* ── CHANGE THIS to your deployed backend URL ── */
+  :root {
+    --api: "https://github.com/KatadaSiraj/KatadaSiraj.github.io";
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #810B38;
+    --surface:  #F1E2D1;
+    --border:   #DCC3AA;
+    --border2:  #ead7c5;
+    --accent:   #541A1A;
+    --accent2:  #a21149;
+    --text:     #ffdeb8;
+    --muted:    #494643;
+    --success:  #37ad78;
+    --error:    #ff4d6d;
+    --warn:     #ffd166;
+    --card-r:   12px;
+    --mono:     'DM Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+    --display:  'Bebas Neue', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+  #root { min-height: 100vh; }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  /* Header */
+  .header {
+    display: flex; align-items: flex-end; gap: 16px;
+    margin-bottom: 56px;
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: clamp(52px, 10vw, 88px);
+    line-height: 0.9;
+    letter-spacing: 1px;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  /* Input card */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-r);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .url-row {
+    display: flex; gap: 10px;
+  }
+  .url-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #494643;
+    outline: none;
+    transition: border-color 0.15s;
+    background-color: #ead7c5;
+  }
+  .url-input::placeholder { color: var(--muted); }
+  .url-input:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 12px 22px;
+    border-radius: 8px;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-accent {
+    background: var(--accent);
+    color: #E9E9E9;
+  }
+  .btn-accent:hover:not(:disabled) { background: #f5ff72; transform: translateY(-1px); }
+  .btn-accent:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-download {
+    background: var(--success);
+    color: #0a0a0b;
+    padding: 14px 32px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .btn-download:hover { background: #6fffc2; transform: translateY(-1px); }
+
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--error);
+    color: var(--error);
+  }
+  .btn-danger:hover { background: var(--error); color: #fff; }
+
+  /* Tag options */
+  .options-section {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .options-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .options-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: #C38648;
+    user-select: none;
+  }
+  .toggle.on {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.27);
+    color: var(--accent);
+  }
+  .toggle-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+  }
+  .toggle.on .toggle-dot { opacity: 1; }
+
+
+
+  /* Track list */
+  .section-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .count-badge {
+    background: var(--border2);
+    color: var(--muted);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-family: var(--mono);
+  }
+
+  .track-list {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 28px;
+  }
+  .track-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    transition: border-color 0.15s;
+  }
+  .track-item.done  { border-color: rgba(62,255,168,0.25); }
+  .track-item.error { border-color: rgba(255,77,109,0.25); }
+  .track-item.downloading { border-color: rgba(232,255,62,0.3); }
+
+  .track-thumb {
+    width: 40px; height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .track-info { flex: 1; min-width: 0; }
+  .track-title {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track-channel {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+  .track-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+  .track-status.queued      { color: var(--muted); }
+  .track-status.downloading { color: var(--accent); }
+  .track-status.tagging     { color: var(--warn); }
+  .track-status.done        { color: var(--success); }
+  .track-status.error       { color: var(--error); }
+
+  /* Progress bar */
+  .progress-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-r);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .progress-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .progress-pct {
+    font-family: var(--display);
+    font-size: 28px;
+    color: var(--accent);
+  }
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .progress-track {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Download ready */
+  .download-card {
+    background: rgba(62,255,168,0.06);
+    border: 1px solid rgba(62,255,168,0.25);
+    border-radius: var(--card-r);
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .download-card h3 {
+    font-family: var(--display);
+    font-size: 32px;
+    color: var(--success);
+    margin-bottom: 6px;
+  }
+  .download-card p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-family: var(--mono);
+  }
+
+  /* Error card */
+  .error-card {
+    background: rgba(255,77,109,0.06);
+    border: 1px solid rgba(255,77,109,0.25);
+    border-radius: var(--card-r);
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--error);
+    margin-bottom: 20px;
+  }
+
+  /* Spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* Waveform animation on active track */
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50%       { transform: scaleY(1); }
+  }
+  .wave-bars {
+    display: flex; align-items: center; gap: 2px;
+    height: 16px; flex-shrink: 0;
+  }
+  .wave-bar {
+    width: 3px; background: var(--accent); border-radius: 2px;
+    animation: wave 0.8s ease-in-out infinite;
+    height: 100%;
+  }
+  .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+
+  .actions-row {
+    display: flex; gap: 10px; justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 560px) {
+    .url-row { flex-direction: column; }
+    .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+// ── CHANGE THIS to your deployed backend URL ───────────────────────────────
+const API_BASE = "https://github.com/KatadaSiraj/KatadaSiraj.github.io";
+// ─────────────────────────────────────────────────────────────────────────
+
+const { useState, useEffect, useRef, useCallback } = React;
+
+const TAG_OPTIONS = [
+  { key: "title",        label: "Title" },
+  { key: "artist",       label: "Artist" },
+  { key: "album",        label: "Album" },
+  { key: "track_number", label: "Track #" },
+  { key: "disc_number",  label: "Disc #" },
+  { key: "year",         label: "Year" },
+  { key: "genre",        label: "Genre" },
+  { key: "cover_art",    label: "Cover Art" },
+];
+
+const DEFAULT_OPTIONS = Object.fromEntries(TAG_OPTIONS.map(t => [t.key, true]));
+
+function WaveBars() {
+  return (
+    <div className="wave-bars">
+      <div className="wave-bar" />
+      <div className="wave-bar" />
+      <div className="wave-bar" />
+    </div>
+  );
+}
+
+function TrackStatus({ status }) {
+  if (status === "downloading") return <div className="track-status downloading"><WaveBars /></div>;
+  const labels = {
+    queued: "·", tagging: "TAGGING…", done: "✓", error: "✗"
+  };
+  return <span className={`track-status ${status}`}>{labels[status] ?? status}</span>;
+}
+
+function App() {
+  const [url, setUrl] = useState("");
+  const [options, setOptions] = useState(DEFAULT_OPTIONS);
+  const [tracks, setTracks] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [jobId, setJobId] = useState(null);
+  const [job, setJob] = useState(null);   // live status
+  const [error, setError] = useState("");
+  const pollRef = useRef(null);
+
+  const clearError = () => setError("");
+
+  // Poll job status
+  useEffect(() => {
+    if (!jobId) return;
+    clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/status/${jobId}`);
+        const data = await res.json();
+        setJob(data);
+        if (data.status === "done" || data.status === "cancelled" || data.status === "error") {
+          clearInterval(pollRef.current);
+        }
+      } catch (e) {
+        // network hiccup, keep trying
+      }
+    }, 1000);
+    return () => clearInterval(pollRef.current);
+  }, [jobId]);
+
+  const previewPlaylist = async () => {
+    if (!url.trim()) return;
+    setLoadingPreview(true);
+    setError("");
+    setTracks(null);
+    setJobId(null);
+    setJob(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/playlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unknown error");
+      setTracks(data.tracks);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const startDownload = async () => {
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/download`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, options, tracks }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unknown error");
+      setJobId(data.job_id);
+      setJob({ status: "queued", progress: 0, tracks: tracks.map(t => ({
+        title: t.title, thumbnail: t.thumbnail, status: "queued"
+      }))});
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const cancelJob = async () => {
+    if (!jobId) return;
+    await fetch(`${API_BASE}/api/cancel/${jobId}`, { method: "POST" });
+  };
+
+  const downloadZip = () => {
+    window.location.href = `${API_BASE}/api/download/${jobId}`;
+  };
+
+  const reset = () => {
+    clearInterval(pollRef.current);
+    setUrl(""); setTracks(null); setJobId(null); setJob(null); setError("");
+  };
+
+  const toggleOption = (key) =>
+    setOptions(o => ({ ...o, [key]: !o[key] }));
+
+  const liveTracks = job?.tracks ?? tracks;
+  const isRunning = job && !["done","cancelled","error"].includes(job.status);
+  const isDone = job?.status === "done";
+  const pct = job ? Math.round((job.progress ?? 0) * 100) : 0;
+
+  return (
+    <div className="app">
+      {/* Header */}
+      <div className="header">
+        <div className="logo">PLAYLIST<span>RIPPER</span></div>
+        <div className="tagline">YouTube → Tagged MP3s → ZIP</div>
+      </div>
+
+      {/* URL input */}
+      {!isRunning && !isDone && (
+        <div className="input-card">
+          <div className="url-row">
+            <input
+              className="url-input"
+              placeholder="https://www.youtube.com/playlist?list=..."
+              value={url}
+              onChange={e => { setUrl(e.target.value); setTracks(null); setJob(null); }}
+              onKeyDown={e => e.key === "Enter" && previewPlaylist()}
+            />
+            <button className="btn btn-accent" onClick={previewPlaylist} disabled={!url.trim() || loadingPreview}>
+              {loadingPreview ? <span className="spinner" /> : "Preview"}
+            </button>
+          </div>
+
+          {/* Tag options */}
+          <div className="options-section">
+            <div className="options-label">Metadata tags to embed</div>
+            <div className="options-grid">
+              {TAG_OPTIONS.map(opt => (
+                <div
+                  key={opt.key}
+                  className={`toggle ${options[opt.key] ? "on" : ""}`}
+                  onClick={() => toggleOption(opt.key)}
+                >
+                  <span className="toggle-dot" />
+                  {opt.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <div className="error-card">⚠ {error}</div>}
+
+      {/* Progress */}
+      {isRunning && (
+        <div className="progress-card">
+          <div className="progress-header">
+            <span className="progress-label">{job.status === "zipping" ? "Packaging ZIP" : "Downloading"}</span>
+            <span className="progress-pct">{pct}%</span>
+          </div>
+          <div className="progress-bar-bg">
+            <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+          </div>
+          {job.current_track && (
+            <div className="progress-track">↳ {job.current_track}</div>
+          )}
+          <div style={{ marginTop: 14, display:"flex", justifyContent:"flex-end" }}>
+            <button className="btn btn-danger" onClick={cancelJob}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Download ready */}
+      {isDone && (
+        <div className="download-card">
+          <h3>READY</h3>
+          <p>{liveTracks?.filter(t => t.status === "done").length ?? "All"} tracks packed · playlist.zip</p>
+          <div className="actions-row">
+            <button className="btn btn-download" onClick={downloadZip}>⬇ Download ZIP</button>
+            <button className="btn btn-ghost" onClick={reset}>Start Over</button>
+          </div>
+        </div>
+      )}
+
+      {/* Track list */}
+      {liveTracks && (
+        <>
+          <div className="section-title">
+            Tracks
+            <span className="count-badge">{liveTracks.length}</span>
+          </div>
+          {!isRunning && !isDone && tracks && (
+            <div className="actions-row" style={{ marginBottom: 20 }}>
+              <button className="btn btn-accent" onClick={startDownload}>
+                ⬇ Download {tracks.length} tracks
+              </button>
+              <button className="btn btn-ghost" onClick={reset}>Clear</button>
+            </div>
+          )}
+          <div className="track-list">
+            {liveTracks.map((track, i) => (
+              <div key={i} className={`track-item ${track.status ?? ""}`}>
+                {track.thumbnail
+                  ? <img className="track-thumb" src={track.thumbnail} alt="" loading="lazy" />
+                  : <div className="track-thumb" />
+                }
+                <div className="track-info">
+                  <div className="track-title">{track.title}</div>
+                  {track.meta?.artist && (
+                    <div className="track-channel">{track.meta.artist}{track.meta.album ? ` · ${track.meta.album}` : ""}</div>
+                  )}
+                  {!track.meta && track.channel && (
+                    <div className="track-channel">{track.channel}</div>
+                  )}
+                </div>
+                <TrackStatus status={track.status ?? "queued"} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Attribution */}
+      <div style={{ textAlign:"center", marginTop: 48, fontFamily:"var(--mono)", fontSize:"11px", color:"var(--muted)" }}>
+        Metadata from MusicBrainz · Audio via yt-dlp · Made with ♪
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
