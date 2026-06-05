@@ -22,19 +22,19 @@ app = Flask(__name__)
 CORS(app)
 
 # ── MusicBrainz setup ──────────────────────────────────────────────────────
-musicbrainzngs.set_useragent("PlaylistRipper", "1.0", "https://github.com/yourusername/playlist-ripper")
+musicbrainzngs.set_useragent("PlaylistDownloader", "1.0", "https://github.com/KatadaSiraj/playlist-downloader")
 
 # ── In-memory job store ────────────────────────────────────────────────────
 jobs: dict[str, dict] = {}   # job_id → {status, progress, tracks, error, zip_path}
 
-DOWNLOAD_DIR = Path(tempfile.gettempdir()) / "playlist_ripper"
+DOWNLOAD_DIR = Path(tempfile.gettempdir()) / "playlist_downloader"
 DOWNLOAD_DIR.mkdir(exist_ok=True)
 
 # ── Cleanup old jobs every 30 min ─────────────────────────────────────────
 def _cleanup():
     while True:
-        time.sleep(1800)
-        cutoff = time.time() - 3600
+        time.sleep(1200)
+        cutoff = time.time() - 2400
         for jid in list(jobs):
             if jobs[jid].get("created_at", 0) < cutoff:
                 zp = jobs[jid].get("zip_path")
@@ -105,7 +105,6 @@ def search_musicbrainz(title: str, artist: str = "") -> dict:
             meta["date"] = rel.get("date", "")[:4]  # year only
             meta["track_number"] = rel.get("medium-list", [{}])[0]\
                 .get("track-list", [{}])[0].get("number", "")
-            meta["disc_number"] = rel.get("medium-list", [{}])[0].get("position", "")
         # Genre (MusicBrainz tags)
         tags = rec.get("tag-list", [])
         if tags:
